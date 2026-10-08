@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Product Lines Pieces Included
  * Description: Displays the SKUs listed in a product's Pieces Included metadata.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      Kevin Brent
  * License:     GPL-2.0-or-later
  * Text Domain: product-lines-pieces-included
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'PLPI_VERSION', '1.2.0' );
+define( 'PLPI_VERSION', '1.3.0' );
 define( 'PLPI_FILE', __FILE__ );
 define( 'PLPI_PATH', plugin_dir_path( __FILE__ ) );
 
@@ -68,34 +68,98 @@ function get_pieces_included_skus( WC_Product $product ): array {
 }
 
 /**
+ * Format the included-product SKUs for display.
+ *
+ * @param WC_Product $product Product being displayed.
+ *
+ * @return array<int, string>
+ */
+function get_display_pieces_included_skus( WC_Product $product ): array {
+
+    $display_skus = [];
+
+    foreach ( get_pieces_included_skus( $product ) as $sku => $quantity ) {
+        $display_skus[] = 1 < $quantity
+            ? sprintf( '%s (qty%d)', $sku, $quantity )
+            : $sku;
+    }
+
+    return $display_skus;
+}
+
+/**
+ * Get the current WooCommerce product.
+ *
+ * @return WC_Product|null
+ */
+function get_current_product(): ?WC_Product {
+
+    global $product;
+
+    if ( $product instanceof WC_Product ) {
+        return $product;
+    }
+
+    $product = wc_get_product( get_the_ID() );
+
+    return $product instanceof WC_Product ? $product : null;
+}
+
+/**
  * Display the included-product SKUs below the current product title.
  *
  * @return void
  */
 function display_pieces_included_skus(): void {
 
-    global $product;
+    $product = get_current_product();
 
-    if ( ! $product instanceof WC_Product ) {
+    if ( null === $product ) {
         return;
     }
 
-    $skus = get_pieces_included_skus( $product );
+    $display_skus = get_display_pieces_included_skus( $product );
 
-    if ( empty( $skus ) ) {
+    if ( empty( $display_skus ) ) {
         return;
-    }
-
-    $display_skus = [];
-
-    foreach ( $skus as $sku => $quantity ) {
-        $display_skus[] = 1 < $quantity
-            ? sprintf( '%s (qty%d)', $sku, $quantity )
-            : $sku;
     }
 
     printf(
         '<div class="product-lines-pieces-included">%s %s</div>',
+        esc_html__( 'SKU(s):', 'product-lines-pieces-included' ),
+        esc_html( implode( ', ', $display_skus ) )
+    );
+}
+
+/**
+ * Display the product SKU and included-product SKUs in a shortcode location.
+ *
+ * Use [product_lines_sku] in an Elementor Shortcode widget or other shortcode
+ * location. The product's stored SKU is not modified.
+ *
+ * @return string
+ */
+function display_combined_skus_shortcode(): string {
+
+    $product = get_current_product();
+
+    if ( null === $product ) {
+        return '';
+    }
+
+    $display_skus = get_display_pieces_included_skus( $product );
+    $product_sku  = trim( $product->get_sku( 'edit' ) );
+
+    if ( '' !== $product_sku ) {
+        array_unshift( $display_skus, $product_sku );
+    }
+
+    if ( empty( $display_skus ) ) {
+        return '';
+    }
+
+    return sprintf(
+        '<span class="sku_wrapper product-lines-pieces-included">%s <span class="sku">%s</span></span>',
         esc_html__( 'SKU(s):', 'product-lines-pieces-included' ),
         esc_html( implode( ', ', $display_skus ) )
     );
@@ -177,6 +241,7 @@ function register_hooks(): void {
     add_action( 'woocommerce_single_product_summary', __NAMESPACE__ . '\\display_pieces_included_skus', 6 );
     add_action( 'woocommerce_product_options_general_product_data', __NAMESPACE__ . '\\display_pieces_included_field' );
     add_action( 'woocommerce_process_product_meta', __NAMESPACE__ . '\\save_pieces_included_field' );
+    add_shortcode( 'product_lines_sku', __NAMESPACE__ . '\\display_combined_skus_shortcode' );
 }
 
 add_action( 'plugins_loaded', __NAMESPACE__ . '\\register_hooks' );

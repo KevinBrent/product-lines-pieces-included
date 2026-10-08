@@ -19,13 +19,21 @@ The same value can also be maintained programmatically. For example:
 update_post_meta( $product_id, '_pieces_included', [ '632983', '632984', '632984' ] );
 ```
 
-On the single-product page, the plugin resolves those product IDs to their SKUs and displays the result below the product title:
+On the single-product page, the plugin displays the stored piece SKUs below the product title:
 
 ```
 SKU(s): 4234272, 4214218 (qty2)
 ```
 
 Every non-empty SKU is displayed, including SKUs for products that do not yet exist in WooCommerce. Repeated SKUs are consolidated and shown with their quantity.
+
+For a custom Elementor single-product template, add a **Shortcode** widget in the desired SKU location and enter:
+
+```
+[product_lines_sku]
+```
+
+The shortcode displays the product's SKU followed by its included-piece SKUs. It does not modify the stored WooCommerce SKU or affect SKU output elsewhere.
 
 ## Installation
 
